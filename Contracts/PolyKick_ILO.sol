@@ -80,11 +80,19 @@ contract PolyKick_ILO{
         notSold = _tokenAmount;
     }
 
-    function addToWhiteList(address[] memory _allowed) external{
+    function addToWhiteListBulk(address[] memory _allowed) external{
         require(msg.sender == seller || msg.sender == polyKick,"not authorized");
         for(uint i=0; i<_allowed.length; i++){
             isWhitelisted[_allowed[i]] = true;
         }
+    }
+    function addToWhiteList(address _allowed) external{
+        require(msg.sender == seller || msg.sender == polyKick,"not authorized");
+        isWhitelisted[_allowed] = true;
+    }
+    function removeWhiteList(address _usr) external{
+        require(msg.sender == seller || msg.sender == polyKick,"not authorized");
+        isWhitelisted[_usr] = false;
     }
     function buyTokens(uint256 _amountToPay) external nonReentrant{
         require(isWhitelisted[msg.sender] == true, "You need to be White Listed for this ILO");
