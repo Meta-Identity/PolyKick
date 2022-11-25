@@ -2,31 +2,34 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
-contract PolyKick_Launchpad{
+contract PolyKick_ILO{
 
     address public factory;
+    address public constant burn = 0x000000000000000000000000000000000000dEaD;
 
     uint256 private constant _NOT_ENTERED = 1;
     uint256 private constant _ENTERED = 2;
     uint256 private _status;
 
     ERC20 public token;
+    uint8 public tokenDecimals;
     uint256 public tokenAmount;
     ERC20 public currency;
     uint256 public price;
-    uint256 public priceDecimals;
     uint256 public target;
     uint256 public duration;
     uint256 maxAmount;
     uint256 minAmount;
-    uint256 public saleCount;
+    uint256 public salesCount;
 
     struct buyerVault{
         uint256 tokenAmount;
         uint256 currencyPaid;
     }
     
+    mapping(address => bool) public isWhitelisted;
     mapping(address => buyerVault) public buyer;
     mapping(address => bool) public isInvestor;
 
@@ -34,13 +37,14 @@ contract PolyKick_Launchpad{
     address public polyKick;
 
     uint256 public sellerVault;
-    uint256 public boughtAmounts;
+    uint256 public soldAmounts;
+    uint256 public notSold;
     uint256 polyKickPercentage;
     
     bool success;
     
     event approveLaunchpad(bool);
-    event tokenSale(uint256 tokenAmount, uint256 currencyAmount);
+    event tokenSale(uint256 CurrencyAmount, uint256 TokenAmount);
     event tokenWithdraw(address Investor, uint256 Amount);
     event InvestmentReturned(address Investor, uint256 Amount);
 /*
@@ -55,46 +59,55 @@ contract PolyKick_Launchpad{
     constructor(
            address _seller,
            address _polyKick,
-           address _factory,
-           ERC20 _token, 
-           uint256 _tokenAmount, 
+           ERC20 _token,
+           uint8 _tokenDecimals,
+           uint256 _tokenAmount,
            ERC20 _currency, 
-           uint256 _price, 
-           uint256 _priceDecimals, 
+           uint256 _price,
            uint256 _target, 
            uint256 _duration
            ){
         seller = _seller;
-        polyKick = _polyKick;       
-        factory = _factory;
+        polyKick = _polyKick;
         token = _token;
+        tokenDecimals = _tokenDecimals;
         tokenAmount = _tokenAmount;
         currency = _currency;
         price = _price;
-        priceDecimals = _priceDecimals;
         target = _target;
         duration = _duration;
+        _status = _NOT_ENTERED;
+        notSold = _tokenAmount;
     }
 
+    function addToWhiteList(address[] memory _allowed) external{
+        require(msg.sender == seller || msg.sender == polyKick,"not authorized");
+        for(uint i=0; i<_allowed.length; i++){
+            isWhitelisted[_allowed[i]] = true;
+        }
+    }
     function buyTokens(uint256 _amountToPay) external nonReentrant{
+        require(isWhitelisted[msg.sender] == true, "You need to be White Listed for this ILO");
         require(block.timestamp < duration,"Launchpad Ended!");
-        uint256 finalPrice = price/10**priceDecimals;
-        uint256 amount = _amountToPay / finalPrice;
+        uint256 amount = _amountToPay / price; //pricePerToken;
+        uint256 finalAmount = amount * 10 ** tokenDecimals;
         emit tokenSale(_amountToPay, amount);
         //The transfer requires approval from currency smart contract
         currency.transferFrom(msg.sender, address(this), _amountToPay);
         sellerVault += _amountToPay;
-        buyer[msg.sender].tokenAmount = amount;
+        buyer[msg.sender].tokenAmount = finalAmount;
         buyer[msg.sender].currencyPaid = _amountToPay;
-        boughtAmounts += amount;
+        soldAmounts += finalAmount;
+        notSold -= finalAmount;
         isInvestor[msg.sender] = true;
-        saleCount++;
+        salesCount++;
     }
 
     function launchpadApproval() external returns(bool){
         require(block.timestamp > duration, "Launchpad has not ended yet!");
-        if(boughtAmounts >= target){
+        if(soldAmounts >= target){
             success = true;
+            token.transfer(burn, notSold);
         }
         else{
             success = false;
@@ -111,7 +124,7 @@ contract PolyKick_Launchpad{
         uint256 investorAmount = buyer[msg.sender].tokenAmount;
         emit tokenWithdraw(msg.sender, investorAmount);
         token.transfer(msg.sender, investorAmount);
-        boughtAmounts -= investorAmount;
+        soldAmounts -= investorAmount;
         buyer[msg.sender].tokenAmount = 0;
         isInvestor[msg.sender] = false;
     }
