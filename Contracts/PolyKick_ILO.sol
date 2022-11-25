@@ -67,6 +67,7 @@ contract PolyKick_ILO{
            uint256 _target, 
            uint256 _duration
            ){
+        factory = msg.sender;
         seller = _seller;
         polyKick = _polyKick;
         token = _token;
@@ -99,7 +100,7 @@ contract PolyKick_ILO{
         require(block.timestamp < duration,"Launchpad Ended!");
         uint256 amount = _amountToPay / price; //pricePerToken;
         uint256 finalAmount = amount * 10 ** tokenDecimals;
-        emit tokenSale(_amountToPay, amount);
+        emit tokenSale(_amountToPay, finalAmount);
         //The transfer requires approval from currency smart contract
         currency.transferFrom(msg.sender, address(this), _amountToPay);
         sellerVault += _amountToPay;
