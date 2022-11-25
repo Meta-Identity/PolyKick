@@ -2,7 +2,7 @@
 pragma solidity ^0.8.17;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
+//import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract PolyKick_ILO{
 
@@ -77,6 +77,8 @@ contract PolyKick_ILO{
         price = _price;
         target = _target;
         duration = _duration;
+        minAmount = tokenAmount*1/1000;
+        maxAmount = tokenAmount*1/100;
         _status = _NOT_ENTERED;
         notSold = _tokenAmount;
     }
@@ -100,6 +102,7 @@ contract PolyKick_ILO{
         require(block.timestamp < duration,"Launchpad Ended!");
         uint256 amount = _amountToPay / price; //pricePerToken;
         uint256 finalAmount = amount * 10 ** tokenDecimals;
+        require(finalAmount >= minAmount || finalAmount <= maxAmount, "min max!");
         emit tokenSale(_amountToPay, finalAmount);
         //The transfer requires approval from currency smart contract
         currency.transferFrom(msg.sender, address(this), _amountToPay);
