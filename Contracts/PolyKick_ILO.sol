@@ -102,7 +102,7 @@ contract PolyKick_ILO{
         require(block.timestamp < duration,"Launchpad Ended!");
         uint256 amount = _amountToPay / price; //pricePerToken;
         uint256 finalAmount = amount * 10 ** tokenDecimals;
-        require(finalAmount >= minAmount || finalAmount <= maxAmount, "min max!");
+        require(finalAmount >= minAmount && finalAmount <= maxAmount, "min max!");
         emit tokenSale(_amountToPay, finalAmount);
         //The transfer requires approval from currency smart contract
         currency.transferFrom(msg.sender, address(this), _amountToPay);
