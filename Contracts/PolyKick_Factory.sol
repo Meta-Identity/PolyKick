@@ -7,12 +7,10 @@ import "./PolyKick_ILO.sol";
 
 contract PolyKick_Factory{
 
-    PolyKick_ILO public pkILO;
+    PolyKick_ILO private pkILO;
 
     uint256 constant months = 30 days;
     uint256 projectsCount;
-    //address public _factory;
-    //address public _polyKick;
     address public owner;
     uint256 pID;
 
