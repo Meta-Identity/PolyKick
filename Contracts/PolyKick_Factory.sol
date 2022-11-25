@@ -10,6 +10,7 @@ contract PolyKick_Factory{
     PolyKick_ILO private pkILO;
 
     uint256 constant months = 30 days;
+    uint256 projectsAllowed;
     uint256 projectsCount;
     address public owner;
     uint256 pID;
@@ -24,6 +25,7 @@ contract PolyKick_Factory{
         address projectOwner;
         ERC20 projectToken;
         uint8 tokenDecimals;
+        address ILO;
         bool projectStatus;
     }
 
@@ -72,7 +74,7 @@ contract PolyKick_Factory{
         projectsByID[pID].projectStatus = true;
         isProject[_token] = true;
         pT[_token] = pID;
-        projectsCount++;
+        projectsAllowed++;
         emit projectAdded(pID, _name, _token, _projectOwner);
         return(pID);
     }
@@ -114,7 +116,11 @@ contract PolyKick_Factory{
         emit ILOCreated(address(pkILO));   
         _token.transferFrom(msg.sender, address(pkILO), _tokenAmount);
         projectsCount++;
+        setILOaddress(_token);
         return(address(pkILO));
+    }
+    function setILOaddress(ERC20 _token) internal{
+        projectsByID[pT[_token]].ILO = address(pkILO);
     }
 }
 
