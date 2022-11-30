@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./PolyKick_ILO.sol";
 
 
@@ -10,12 +10,13 @@ contract PolyKick_Factory{
     PolyKick_ILO private pkILO;
 
     uint256 constant months = 30 days;
-    uint256 projectsAllowed;
-    uint256 projectsCount;
+    uint256 constant MAX_UINT = 2**256 - 1;
+    uint256 public projectsAllowed;
+    uint256 public projectsCount;
     address public owner;
-    uint256 pID;
+    uint256 private pID;
 
-    event projectAdded(uint256 ProjectID, string ProjectName, ERC20 ProjectToken, address ProjectOwner);
+    event projectAdded(uint256 ProjectID, string ProjectName, IERC20 ProjectToken, address ProjectOwner);
     event ILOCreated(address pkILO);
     event ChangeOwner(address NewOwner);
 
@@ -23,9 +24,11 @@ contract PolyKick_Factory{
         uint256 projectID;
         string projectName;
         address projectOwner;
-        ERC20 projectToken;
+        IERC20 projectToken;
         uint8 tokenDecimals;
         address ILO;
+        uint256 rounds;
+        uint256 totalAmounts;
         bool projectStatus;
     }
 
@@ -33,11 +36,11 @@ contract PolyKick_Factory{
         string name;
         uint8 decimals;
     }
-    mapping(ERC20 => Currencies) public allowedCurrencies;
-    mapping(ERC20 => bool) public isCurrency;
-    mapping(ERC20 => bool) public isProject;
+    mapping(IERC20 => Currencies) public allowedCurrencies;
+    mapping(IERC20 => bool) public isCurrency;
+    mapping(IERC20 => bool) public isProject;
     mapping(uint256 => allowedProjects) public projectsByID;
-    mapping(ERC20 => uint256) private pT;
+    mapping(IERC20 => uint256) private pT;
 
 /* @dev: Check if contract owner */
     modifier onlyOwner (){
@@ -57,13 +60,13 @@ contract PolyKick_Factory{
         emit ChangeOwner(_newOwner);
         owner = _newOwner;
     }
-    function addCurrency(string memory _name, ERC20 _currency, uint8 _decimal) external onlyOwner{
+    function addCurrency(string memory _name, IERC20 _currency, uint8 _decimal) external onlyOwner{
         //can also fix incase of wrong data
         allowedCurrencies[_currency].name = _name;
         allowedCurrencies[_currency].decimals = _decimal;
         isCurrency[_currency] = true; 
     }
-    function addProject(string memory _name, ERC20 _token, uint8 _tokenDecimals, address _projectOwner) external onlyOwner returns(uint256) {
+    function addProject(string memory _name, IERC20 _token, uint8 _tokenDecimals, address _projectOwner) external onlyOwner returns(uint256) {
         require(isProject[_token] != true, "Project already exist!");
         pID++;
         projectsByID[pID].projectID = pID;
@@ -78,17 +81,18 @@ contract PolyKick_Factory{
         emit projectAdded(pID, _name, _token, _projectOwner);
         return(pID);
     }
-
-
-    function startLaunchpad(
-        ERC20 _token, 
+    function projectNewRound(IERC20 _token) external onlyOwner{
+        projectsByID[pT[_token]].projectStatus = true;
+    }
+    function startILO(
+        IERC20 _token, 
         uint256 _tokenAmount, 
-        ERC20 _currency, 
+        IERC20 _currency, 
         uint256 _price, 
         uint8 _priceDecimals, 
         uint256 _target,
         uint256 _months
-        ) external returns(address){
+        ) external{
         require(isProject[_token] == true, "Project is not allowed!");
         require(projectsByID[pT[_token]].projectStatus == true, "ILO was initiated");
         require(_token.balanceOf(msg.sender) >= _tokenAmount,"Not enough tokens");
@@ -113,13 +117,14 @@ contract PolyKick_Factory{
             _target, 
             _duration
             );
-        emit ILOCreated(address(pkILO));   
+        emit ILOCreated(address(pkILO));
         _token.transferFrom(msg.sender, address(pkILO), _tokenAmount);
         projectsCount++;
-        setILOaddress(_token);
-        return(address(pkILO));
+        registerILO(_token, _tokenAmount);
     }
-    function setILOaddress(ERC20 _token) internal{
+    function registerILO(IERC20 _token, uint256 _tokenAmount) internal{
+        projectsByID[pT[_token]].rounds++;
+        projectsByID[pT[_token]].totalAmounts += _tokenAmount;
         projectsByID[pT[_token]].ILO = address(pkILO);
     }
 }
