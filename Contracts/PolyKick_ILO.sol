@@ -44,7 +44,7 @@ using SafeMath for uint256;
     
     bool success;
     
-    event approveLaunchpad(bool);
+    event approveILO(bool);
     event tokenSale(uint256 CurrencyAmount, uint256 TokenAmount);
     event tokenWithdraw(address Buyer, uint256 Amount);
     event CurrencyReturned(address Buyer, uint256 Amount);
@@ -102,7 +102,7 @@ using SafeMath for uint256;
     }
     function buyTokens(uint256 _amountToPay) external nonReentrant{
         require(isWhitelisted[msg.sender] == true, "You need to be White Listed for this ILO");
-        require(block.timestamp < duration,"Launchpad Ended!");
+        require(block.timestamp < duration,"ILO Ended!");
         uint256 amount = _amountToPay.div(price); //pricePerToken;
         uint256 finalAmount = amount * 10 ** tokenDecimals;
         require(finalAmount >= minAmount && finalAmount <= maxAmount, "min max!");
@@ -118,7 +118,7 @@ using SafeMath for uint256;
         salesCount++;
     }
 
-    function launchpadApproval() external returns(bool){
+    function iloApproval() external returns(bool){
         require(block.timestamp > duration, "ILO has not ended yet!");
         if(soldAmounts >= target){
             success = true;
@@ -128,7 +128,7 @@ using SafeMath for uint256;
             success = false;
             sellerVault = 0;
         }
-        emit approveLaunchpad(success);
+        emit approveILO(success);
         return(success);
     }
     function changeMinMax(uint256 _min, uint256 _minM, uint256 _max, uint256 _maxM) external{
@@ -148,7 +148,7 @@ using SafeMath for uint256;
         isBuyer[msg.sender] = false;
     }
 
-    function returnCurrency() external nonReentrant{
+    function returnFunds() external nonReentrant{
         require(block.timestamp > duration, "ILO has not ended yet!");
         require(isBuyer[msg.sender] == true,"Not an Buyer");
         require(success == false, "Launchpad Succeed try withdrawTokens");
