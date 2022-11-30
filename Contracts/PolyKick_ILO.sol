@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-//import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract PolyKick_ILO{
+using SafeMath for uint256;
 
     address public factory;
     address public constant burn = 0x000000000000000000000000000000000000dEaD;
@@ -13,10 +14,10 @@ contract PolyKick_ILO{
     uint256 private constant _ENTERED = 2;
     uint256 private _status;
 
-    ERC20 public token;
+    IERC20 public token;
     uint8 public tokenDecimals;
     uint256 public tokenAmount;
-    ERC20 public currency;
+    IERC20 public currency;
     uint256 public price;
     uint256 public target;
     uint256 public duration;
@@ -31,7 +32,7 @@ contract PolyKick_ILO{
     
     mapping(address => bool) public isWhitelisted;
     mapping(address => buyerVault) public buyer;
-    mapping(address => bool) public isInvestor;
+    mapping(address => bool) public isBuyer;
 
     address public seller;
     address public polyKick;
@@ -45,8 +46,8 @@ contract PolyKick_ILO{
     
     event approveLaunchpad(bool);
     event tokenSale(uint256 CurrencyAmount, uint256 TokenAmount);
-    event tokenWithdraw(address Investor, uint256 Amount);
-    event InvestmentReturned(address Investor, uint256 Amount);
+    event tokenWithdraw(address Buyer, uint256 Amount);
+    event InvestmentReturned(address Buyer, uint256 Amount);
 /*
     @dev: prevent reentrancy when function is executed
 */
@@ -59,10 +60,10 @@ contract PolyKick_ILO{
     constructor(
            address _seller,
            address _polyKick,
-           ERC20 _token,
+           IERC20 _token,
            uint8 _tokenDecimals,
            uint256 _tokenAmount,
-           ERC20 _currency, 
+           IERC20 _currency, 
            uint256 _price,
            uint256 _target, 
            uint256 _duration
@@ -77,8 +78,8 @@ contract PolyKick_ILO{
         price = _price;
         target = _target;
         duration = _duration;
-        minAmount = tokenAmount*1/1000;
-        maxAmount = tokenAmount*1/100;
+        minAmount = tokenAmount.mul(1).div(1000);
+        maxAmount = tokenAmount.mul(1).div(100);
         _status = _NOT_ENTERED;
         notSold = _tokenAmount;
     }
@@ -100,7 +101,7 @@ contract PolyKick_ILO{
     function buyTokens(uint256 _amountToPay) external nonReentrant{
         require(isWhitelisted[msg.sender] == true, "You need to be White Listed for this ILO");
         require(block.timestamp < duration,"Launchpad Ended!");
-        uint256 amount = _amountToPay / price; //pricePerToken;
+        uint256 amount = _amountToPay.div(price); //pricePerToken;
         uint256 finalAmount = amount * 10 ** tokenDecimals;
         require(finalAmount >= minAmount && finalAmount <= maxAmount, "min max!");
         emit tokenSale(_amountToPay, finalAmount);
@@ -111,7 +112,7 @@ contract PolyKick_ILO{
         buyer[msg.sender].currencyPaid = _amountToPay;
         soldAmounts += finalAmount;
         notSold -= finalAmount;
-        isInvestor[msg.sender] = true;
+        isBuyer[msg.sender] = true;
         salesCount++;
     }
 
@@ -128,28 +129,32 @@ contract PolyKick_ILO{
         emit approveLaunchpad(success);
         return(success);
     }
-
+    function changeMinMax(uint256 _min, uint256 _minM, uint256 _max, uint256 _maxM) external{
+        require(msg.sender == seller, "Not authorized!");
+        minAmount = tokenAmount.mul(_min).div(_minM);
+        maxAmount = tokenAmount.mul(_max).div(_maxM);
+    }
     function withdrawTokens() external nonReentrant{
         require(block.timestamp > duration, "Launchpad has not ended yet!");
-        require(isInvestor[msg.sender] == true,"Not an Investor");
+        require(isBuyer[msg.sender] == true,"Not an Buyer");
         require(success == true, "Launchpad Failed");
-        uint256 investorAmount = buyer[msg.sender].tokenAmount;
-        emit tokenWithdraw(msg.sender, investorAmount);
-        token.transfer(msg.sender, investorAmount);
-        soldAmounts -= investorAmount;
+        uint256 buyerAmount = buyer[msg.sender].tokenAmount;
+        emit tokenWithdraw(msg.sender, buyerAmount);
+        token.transfer(msg.sender, buyerAmount);
+        soldAmounts -= buyerAmount;
         buyer[msg.sender].tokenAmount = 0;
-        isInvestor[msg.sender] = false;
+        isBuyer[msg.sender] = false;
     }
 
     function returnInvestment() external nonReentrant{
         require(block.timestamp > duration, "Launchpad has not ended yet!");
-        require(isInvestor[msg.sender] == true,"Not an Investor");
+        require(isBuyer[msg.sender] == true,"Not an Buyer");
         require(success == false, "Launchpad Succeed try withdrawTokens");
-        uint256 investorAmount = buyer[msg.sender].currencyPaid;
-        emit InvestmentReturned(msg.sender, investorAmount);
-        currency.transfer(msg.sender, investorAmount);
+        uint256 buyerAmount = buyer[msg.sender].currencyPaid;
+        emit InvestmentReturned(msg.sender, buyerAmount);
+        currency.transfer(msg.sender, buyerAmount);
         buyer[msg.sender].currencyPaid = 0;
-        isInvestor[msg.sender] = false;
+        isBuyer[msg.sender] = false;
     }
 
     function sellerWithdraw() external nonReentrant{
