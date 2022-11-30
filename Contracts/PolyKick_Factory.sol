@@ -15,6 +15,7 @@ contract PolyKick_Factory{
     uint256 public projectsCount;
     address public owner;
     uint256 private pID;
+    //uint256 private polyKickPercentage;
 
     event projectAdded(uint256 ProjectID, string ProjectName, IERC20 ProjectToken, address ProjectOwner);
     event ILOCreated(address pkILO);
@@ -29,6 +30,7 @@ contract PolyKick_Factory{
         address ILO;
         uint256 rounds;
         uint256 totalAmounts;
+        uint256 polyKickPercentage;
         bool projectStatus;
     }
 
@@ -66,7 +68,7 @@ contract PolyKick_Factory{
         allowedCurrencies[_currency].decimals = _decimal;
         isCurrency[_currency] = true; 
     }
-    function addProject(string memory _name, IERC20 _token, uint8 _tokenDecimals, address _projectOwner) external onlyOwner returns(uint256) {
+    function addProject(string memory _name, IERC20 _token, uint8 _tokenDecimals, address _projectOwner, uint256 _polyKickPercentage) external onlyOwner returns(uint256) {
         require(isProject[_token] != true, "Project already exist!");
         pID++;
         projectsByID[pID].projectID = pID;
@@ -77,6 +79,7 @@ contract PolyKick_Factory{
         projectsByID[pID].projectStatus = true;
         isProject[_token] = true;
         pT[_token] = pID;
+        projectsByID[pID].polyKickPercentage = _polyKickPercentage;
         projectsAllowed++;
         emit projectAdded(pID, _name, _token, _projectOwner);
         return(pID);
@@ -115,7 +118,8 @@ contract PolyKick_Factory{
             _currency, 
             price,
             _target, 
-            _duration
+            _duration,
+            projectsByID[pID].polyKickPercentage
             );
         emit ILOCreated(address(pkILO));
         _token.transferFrom(msg.sender, address(pkILO), _tokenAmount);
