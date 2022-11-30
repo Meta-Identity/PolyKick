@@ -40,14 +40,14 @@ using SafeMath for uint256;
     uint256 public sellerVault;
     uint256 public soldAmounts;
     uint256 public notSold;
-    uint256 polyKickPercentage;
+    uint256 private polyKickPercentage;
     
     bool success;
     
     event approveLaunchpad(bool);
     event tokenSale(uint256 CurrencyAmount, uint256 TokenAmount);
     event tokenWithdraw(address Buyer, uint256 Amount);
-    event InvestmentReturned(address Buyer, uint256 Amount);
+    event CurrencyReturned(address Buyer, uint256 Amount);
 /*
     @dev: prevent reentrancy when function is executed
 */
@@ -66,7 +66,8 @@ using SafeMath for uint256;
            IERC20 _currency, 
            uint256 _price,
            uint256 _target, 
-           uint256 _duration
+           uint256 _duration,
+           uint256 _polyKickPercentage
            ){
         factory = msg.sender;
         seller = _seller;
@@ -78,6 +79,7 @@ using SafeMath for uint256;
         price = _price;
         target = _target;
         duration = _duration;
+        polyKickPercentage = _polyKickPercentage;
         minAmount = tokenAmount.mul(1).div(1000);
         maxAmount = tokenAmount.mul(1).div(100);
         _status = _NOT_ENTERED;
@@ -117,7 +119,7 @@ using SafeMath for uint256;
     }
 
     function launchpadApproval() external returns(bool){
-        require(block.timestamp > duration, "Launchpad has not ended yet!");
+        require(block.timestamp > duration, "ILO has not ended yet!");
         if(soldAmounts >= target){
             success = true;
             token.transfer(burn, notSold);
@@ -135,9 +137,9 @@ using SafeMath for uint256;
         maxAmount = tokenAmount.mul(_max).div(_maxM);
     }
     function withdrawTokens() external nonReentrant{
-        require(block.timestamp > duration, "Launchpad has not ended yet!");
+        require(block.timestamp > duration, "ILO has not ended yet!");
         require(isBuyer[msg.sender] == true,"Not an Buyer");
-        require(success == true, "Launchpad Failed");
+        require(success == true, "ILO Failed");
         uint256 buyerAmount = buyer[msg.sender].tokenAmount;
         emit tokenWithdraw(msg.sender, buyerAmount);
         token.transfer(msg.sender, buyerAmount);
@@ -146,12 +148,12 @@ using SafeMath for uint256;
         isBuyer[msg.sender] = false;
     }
 
-    function returnInvestment() external nonReentrant{
-        require(block.timestamp > duration, "Launchpad has not ended yet!");
+    function returnCurrency() external nonReentrant{
+        require(block.timestamp > duration, "ILO has not ended yet!");
         require(isBuyer[msg.sender] == true,"Not an Buyer");
         require(success == false, "Launchpad Succeed try withdrawTokens");
         uint256 buyerAmount = buyer[msg.sender].currencyPaid;
-        emit InvestmentReturned(msg.sender, buyerAmount);
+        emit CurrencyReturned(msg.sender, buyerAmount);
         currency.transfer(msg.sender, buyerAmount);
         buyer[msg.sender].currencyPaid = 0;
         isBuyer[msg.sender] = false;
@@ -159,8 +161,8 @@ using SafeMath for uint256;
 
     function sellerWithdraw() external nonReentrant{
         require(msg.sender == seller,"Not official seller");
-        require(block.timestamp > duration, "Launchpad has not ended yet!");
-        uint256 polyKickAmount = sellerVault*5/100;
+        require(block.timestamp > duration, "ILO has not ended yet!");
+        uint256 polyKickAmount = sellerVault.mul(polyKickPercentage).div(100);
         uint256 sellerAmount = sellerVault - polyKickAmount;
         if(success == true){
             currency.transfer(polyKick, polyKickAmount);
