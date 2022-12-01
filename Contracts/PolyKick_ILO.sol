@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract PolyKick_ILO{
 using SafeMath for uint256;
 
+    error InvalidAmount(uint256 min, uint256 max);
     address public factory;
     address public constant burn = 0x000000000000000000000000000000000000dEaD;
 
@@ -105,7 +106,9 @@ using SafeMath for uint256;
         require(block.timestamp < duration,"ILO Ended!");
         uint256 amount = _amountToPay.div(price); //pricePerToken;
         uint256 finalAmount = amount * 10 ** tokenDecimals;
-        require(finalAmount >= minAmount && finalAmount <= maxAmount, "min max!");
+        if(finalAmount < minAmount && finalAmount > maxAmount){
+            revert InvalidAmount(minAmount, maxAmount);
+        }
         emit tokenSale(_amountToPay, finalAmount);
         //The transfer requires approval from currency smart contract
         currency.transferFrom(msg.sender, address(this), _amountToPay);
@@ -151,7 +154,7 @@ using SafeMath for uint256;
     function returnFunds() external nonReentrant{
         require(block.timestamp > duration, "ILO has not ended yet!");
         require(isBuyer[msg.sender] == true,"Not an Buyer");
-        require(success == false, "Launchpad Succeed try withdrawTokens");
+        require(success == false, "ILO Succeed try withdrawTokens");
         uint256 buyerAmount = buyer[msg.sender].currencyPaid;
         emit CurrencyReturned(msg.sender, buyerAmount);
         currency.transfer(msg.sender, buyerAmount);
