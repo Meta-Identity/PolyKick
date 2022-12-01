@@ -15,7 +15,6 @@ contract PolyKick_Factory{
     uint256 public projectsCount;
     address public owner;
     uint256 private pID;
-    //uint256 private polyKickPercentage;
 
     event projectAdded(uint256 ProjectID, string ProjectName, IERC20 ProjectToken, address ProjectOwner);
     event ILOCreated(address pkILO);
@@ -106,7 +105,7 @@ contract PolyKick_Factory{
         _months = _months * months;
         uint8 priceDecimals = allowedCurrencies[_currency].decimals - _priceDecimals;
         uint256 price = _price*10**priceDecimals;
-        uint8 _tokenDecimals = projectsByID[pID].tokenDecimals;
+        uint8 _tokenDecimals = projectsByID[pT[_token]].tokenDecimals;
         uint256 _duration = _months + block.timestamp;
 
         pkILO = new PolyKick_ILO(
