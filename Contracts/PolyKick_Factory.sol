@@ -101,6 +101,7 @@ contract PolyKick_Factory{
         require(isCurrency[_currency] ==true, "Currency is not allowed!");
         require(_priceDecimals <= allowedCurrencies[_currency].decimals, "Decimals error!");
         projectsByID[pT[_token]].projectStatus = false;
+        uint256 _pkP = projectsByID[pT[_token]].polyKickPercentage;
         address _polyKick = owner;
         _months = _months * months;
         uint8 priceDecimals = allowedCurrencies[_currency].decimals - _priceDecimals;
@@ -118,7 +119,7 @@ contract PolyKick_Factory{
             price,
             _target, 
             _duration,
-            projectsByID[pID].polyKickPercentage
+            _pkP
             );
         emit ILOCreated(address(pkILO));
         _token.transferFrom(msg.sender, address(pkILO), _tokenAmount);
