@@ -239,7 +239,7 @@ using SafeMath for uint256;
         isBuyer[msg.sender] = false;
     }
     function returnFunds() external nonReentrant{
-        require(block.timestamp > duration, "ILO has not ended yet!");
+        //require(block.timestamp > duration, "ILO has not ended yet!");
         require(isBuyer[msg.sender] == true,"Not a Buyer");
         require(success == false && fundsReturn == true, "ILO Succeed try withdrawTokens");
         uint256 buyerAmount = buyer[msg.sender].currencyPaid;
