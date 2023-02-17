@@ -82,6 +82,7 @@ contract PolyKick_Factory{
              external onlyOwner returns(uint256) {
         require(isProject[_token] != true, "Project already exist!");
         require(isCurrency[_currency] ==true, "Not a currency");
+        require(_polyKickPercentage <= 24, "Max is 24 %");
         pID++;
         uint8 dcml = allowedCurrencies[_currency].decimals;
         toPolykick = _toPolykick * 10 ** dcml;
