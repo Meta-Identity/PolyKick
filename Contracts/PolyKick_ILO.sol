@@ -8,7 +8,6 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 contract PolyKick_ILO{
 using SafeMath for uint256;
 
-    error InvalidAmount(uint256 min, uint256 max);
     address public factory;
     address public constant burn = 0x000000000000000000000000000000000000dEaD;
 
@@ -62,6 +61,8 @@ using SafeMath for uint256;
     event tokenSale(uint256 CurrencyAmount, uint256 TokenAmount);
     event tokenWithdraw(address Buyer, uint256 Amount);
     event CurrencyReturned(address Buyer, uint256 Amount);
+    event discountSet(uint256 Discount, bool Status);
+    event whiteList(address Buyer, bool Status);
 
 /* @dev: Check if Admin */
     modifier onlyAdmin (){
@@ -158,17 +159,23 @@ using SafeMath for uint256;
         uint256 dis = 100 - _discount;
         discount = price.mul(dis).div(100);
         isDiscount = _isDiscount;
+        emit discountSet(discount, _isDiscount);
     }
     function addToWhiteListBulk(address[] memory _allowed) external onlyAdmin{
         for(uint i=0; i<_allowed.length; i++){
+            require(_allowed[i] != address(0x0), "Zero aadress!");
             isWhitelisted[_allowed[i]] = true;
         }
     }
     function addToWhiteList(address _allowed) external onlyAdmin{
+        require(_allowed != address(0x0), "Zero aadress!");
         isWhitelisted[_allowed] = true;
+        emit whiteList(_allowed, isWhitelisted[_allowed]);
     }
     function removeWhiteList(address _usr) external onlyAdmin{
+        require(_usr != address(0x0), "Zero aadress!");
         isWhitelisted[_usr] = false;
+        emit whiteList(_usr, isWhitelisted[_usr]);
     }
     function extendILO(uint256 _duration) external onlyAdmin{
         duration = _duration.add(block.timestamp);
@@ -259,6 +266,8 @@ using SafeMath for uint256;
     }
 
     function emergencyRefund(uint256 _confirm) external onlyAdmin{
+        require(success != true, "ILO is successful");
+        require(duration < block.timestamp, "ILO has ended use approveILO");
         require(_confirm == 369, "Wrong confirmation code");
             success = false;
             fundsReturn = true;
