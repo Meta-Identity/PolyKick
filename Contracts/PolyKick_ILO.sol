@@ -178,6 +178,7 @@ using SafeMath for uint256;
         emit whiteList(_usr, isWhitelisted[_usr]);
     }
     function extendILO(uint256 _duration) external onlyAdmin{
+        fundsReturn = true;
         duration = _duration.add(block.timestamp);
     }
     function buyTokens(uint256 _amountToPay) external nonReentrant{
