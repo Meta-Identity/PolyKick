@@ -59,7 +59,7 @@ contract IloWhitelistNFT is ERC721 {
             uint256(keccak256(abi.encodePacked(_to, totalNftsMinted))) % 
             (NUM_SPECIAL_NFTS + totalNftsMinted) < NUM_SPECIAL_NFTS - specialNftsMinted) 
             {
-              tokenId = totalNftsMinted + NUM_SPECIAL_NFTS + specialNftsMinted;
+              tokenId = totalNftsMinted;
               specialNftsMinted++;
               userWhitelistedIlos[_to] = 10;
         } else {
@@ -71,7 +71,7 @@ contract IloWhitelistNFT is ERC721 {
     }
     function mintRare(address _to, uint256 _numWhitelistedIlos) external onlyOwner {
         require(rareNftsMinted < rareNFT, "Maximum number of rare NFTs has been reached");
-        uint256 tokenId = totalNftsMinted + NUM_SPECIAL_NFTS + specialNftsMinted + rareNftsMinted + rareNFT + 300000;
+        uint256 tokenId = totalNftsMinted;
         _safeMint(_to, tokenId);
         userWhitelistedIlos[_to] = _numWhitelistedIlos;
         rareNftsMinted++;
