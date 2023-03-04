@@ -4,8 +4,10 @@ pragma solidity 0.8.17;
 
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
+
 interface PolyKick {
-    function addToWhiteListBulk(address[] calldata _addresses) external;
+    function addToWhiteListBulk(address[] memory _allowed) external;
+    function addToWhiteList(address _allowed) external;
 }
 
 contract IloWhitelistNFT is ERC721 {
@@ -14,15 +16,25 @@ contract IloWhitelistNFT is ERC721 {
     address public owner;
     
     uint256 public constant NUM_SPECIAL_NFTS = 300;
-    uint256 public constant rareNFT = 30;
+    uint256 public constant rareNFT = 9;
 
     uint256 public rareNftsMinted = 0;
     uint256 public specialNftsMinted = 0;
-    uint256 public totalNftsMinted = 0;
+    uint256 public normalNftsMinted = 0;
+    uint256 public totalNftsMinted = 0; //total supply
     uint256 public batchSize = 1000;
 
-    mapping(address => uint256) public userWhitelistedIlos;
+    struct polyNFT{
+        uint256 tokenId;
+        uint256 userWhitelistedIlos;
+        string typeNFT;
+    }
+
+    mapping(address => polyNFT) public details;
     mapping(address => bool) public isAdmin;
+
+    event polyMinted(address To, uint256 TokenID, string typeNFT);
+    event whiteListed(address[] Addresses);
 
 /* @dev: Check if Admin */
     modifier onlyAdmin (){
@@ -39,8 +51,9 @@ contract IloWhitelistNFT is ERC721 {
     constructor(string memory _name, string memory _symbol) ERC721(_name, _symbol) {
         owner = msg.sender;
         isAdmin[owner] = true;
+        isAdmin[address(this)] = true;
     }
-
+     
     function setPolyKick(address _polyKick) external onlyAdmin{
         require(_polyKick != address(0x0),"address zero");
         iloContract = PolyKick(_polyKick);
@@ -51,69 +64,113 @@ contract IloWhitelistNFT is ERC721 {
     function setBatchSize(uint256 _batchSize) external onlyAdmin {
         batchSize = _batchSize;
     }
-    function mint(address _to) external onlyAdmin {
-        require(userWhitelistedIlos[_to] == 0, "already minted for user");
-        uint256 tokenId;
-        if (
-            specialNftsMinted < NUM_SPECIAL_NFTS && 
-            uint256(keccak256(abi.encodePacked(_to, totalNftsMinted))) % 
-            (NUM_SPECIAL_NFTS + totalNftsMinted) < NUM_SPECIAL_NFTS - specialNftsMinted) 
-            {
-              tokenId = totalNftsMinted;
-              specialNftsMinted++;
-              userWhitelistedIlos[_to] = 10;
-        } else {
-            tokenId = totalNftsMinted;
-            totalNftsMinted++;
-            userWhitelistedIlos[_to] = 3;
-        }
-        _safeMint(_to, tokenId);
+    function uint2str(uint256 _i) internal pure returns (string memory) {
+    if (_i == 0) {
+        return "0";
     }
+    uint256 j = _i;
+    uint256 length;
+    while (j != 0) {
+        length++;
+        j /= 10;
+    }
+    bytes memory bstr = new bytes(length);
+    uint256 k = length;
+    while (_i != 0) {
+        k = k-1;
+        uint8 temp = (48 + uint8(_i - _i / 10 * 10));
+        bytes1 b1 = bytes1(temp);
+        bstr[k] = b1;
+        _i /= 10;
+    }
+    return string(bstr);
+}
+
+    function mintBatch(address[] memory _to) external onlyOwner {
+    for (uint256 i = 0; i < _to.length; i++) {
+        mint(_to[i]);
+        }
+    }
+    function mint(address _to) public onlyAdmin {
+    require(details[_to].userWhitelistedIlos == 0, "already minted for user");
+
+    uint256 tokenId;
+    string memory typeNFT;
+    tokenId = totalNftsMinted;
+
+    if (specialNftsMinted < NUM_SPECIAL_NFTS &&
+        uint256(keccak256(abi.encodePacked(_to, totalNftsMinted))) % (NUM_SPECIAL_NFTS + totalNftsMinted) < NUM_SPECIAL_NFTS - specialNftsMinted) {
+        details[_to].tokenId = tokenId;
+        details[_to].userWhitelistedIlos = 10;
+        specialNftsMinted++;
+        typeNFT = string(abi.encodePacked("Special Polykick NFT ", uint2str(specialNftsMinted)));
+    } else {
+        tokenId = totalNftsMinted;
+        details[_to].userWhitelistedIlos = 3;
+        normalNftsMinted++;
+        typeNFT = string(abi.encodePacked("Normal Polykick NFT", uint2str(normalNftsMinted)));
+    }
+
+    totalNftsMinted++;
+    details[_to].typeNFT = typeNFT;
+
+    emit polyMinted(_to, tokenId, typeNFT);
+    _safeMint(_to, tokenId);
+}
+
     function mintRare(address _to, uint256 _numWhitelistedIlos) external onlyOwner {
         require(rareNftsMinted < rareNFT, "Maximum number of rare NFTs has been reached");
+        string memory typeNFT;
         uint256 tokenId = totalNftsMinted;
-        _safeMint(_to, tokenId);
-        userWhitelistedIlos[_to] = _numWhitelistedIlos;
+        typeNFT = string(abi.encodePacked("Rare Polykick NFT", uint2str(tokenId)));
+        details[_to].userWhitelistedIlos = _numWhitelistedIlos;
+        details[_to].typeNFT = typeNFT;
         rareNftsMinted++;
+        totalNftsMinted++;
+        emit polyMinted(_to, tokenId, typeNFT);
+        _safeMint(_to, tokenId);
     }
     function transfer(address _to, uint256 _tokenId) external {
         require(_isApprovedOrOwner(_msgSender(), _tokenId), "ERC721: transfer caller is not owner nor approved");
         _transfer(_msgSender(), _to, _tokenId);
-        userWhitelistedIlos[_to] = userWhitelistedIlos[msg.sender];
-        delete userWhitelistedIlos[msg.sender];
+        details[_to].userWhitelistedIlos = details[msg.sender].userWhitelistedIlos;
+        details[_to].typeNFT = details[msg.sender].typeNFT;
+        details[_to].tokenId = _tokenId;
+
+        delete details[msg.sender];
     }
 
     function canParticipate(address _user, uint256 _numWhitelistedIlos) external view returns (bool) {
-        return userWhitelistedIlos[_user] >= _numWhitelistedIlos;
+        return details[_user].userWhitelistedIlos >= _numWhitelistedIlos;
     }
+    
+    function addToWhiteListBulkFromNFT() external {
+    require(totalNftsMinted > 0, "No NFTs have been minted");
 
-    function addToWhiteListBulkFromNFT() external onlyAdmin{
-        require(totalNftsMinted > 0, "No NFTs have been minted");
-        address[] memory usersToAddToWhiteList;
+    uint256 numBatches = (totalNftsMinted + batchSize - 1) / batchSize;
+
+    for (uint256 batchIndex = 0; batchIndex < numBatches; batchIndex++) {
+        uint256 startIndex = batchIndex * batchSize;
+        uint256 endIndex = startIndex + batchSize;
+
+        if (endIndex > totalNftsMinted) {
+            endIndex = totalNftsMinted;
+        }
+
+        address[] memory usersToAddToWhiteList = new address[](endIndex - startIndex);
         uint256 numUsersToAddToWhiteList = 0;
-        for (uint256 i = 0; i < totalNftsMinted; i++) {
-            address user = ownerOf(i);
-            if (userWhitelistedIlos[user] > 0) {
-                usersToAddToWhiteList[numUsersToAddToWhiteList] = user;
-                numUsersToAddToWhiteList++;
-                userWhitelistedIlos[user] -= 1;
-            }
-        }
 
-        uint256 numBatches = (numUsersToAddToWhiteList + batchSize - 1) / batchSize;
-        for (uint256 i = 0; i < numBatches; i++) {
-            uint256 startIndex = i * batchSize;
-            uint256 endIndex = startIndex + batchSize;
-            if (endIndex > numUsersToAddToWhiteList) {
-               endIndex = numUsersToAddToWhiteList;
+        for (uint256 i = startIndex; i < endIndex; i++) {
+            address user = ownerOf(i);
+            if (details[user].userWhitelistedIlos > 0) {
+                usersToAddToWhiteList[numUsersToAddToWhiteList++] = user;
+                details[user].userWhitelistedIlos--;
             }
-            address[] memory batch = new address[](endIndex - startIndex);
-            for (uint256 j = startIndex; j < endIndex; j++) {
-                batch[j - startIndex] = usersToAddToWhiteList[j];
-            }
-            iloContract.addToWhiteListBulk(batch);
         }
+        emit whiteListed(usersToAddToWhiteList);
+        iloContract.addToWhiteListBulk(usersToAddToWhiteList);
     }
+}
 
 }
 
