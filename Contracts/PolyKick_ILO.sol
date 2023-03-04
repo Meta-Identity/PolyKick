@@ -4,10 +4,13 @@ pragma solidity 0.8.17;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-
+interface polyNFT{
+    function mint(address _to) external;
+}
 contract PolyKick_ILO{
 using SafeMath for uint256;
-
+    
+    polyNFT public nftContract;
     address public factory;
     address public constant burn = 0x000000000000000000000000000000000000dEaD;
 
@@ -46,6 +49,7 @@ using SafeMath for uint256;
     bool public success = false;
     bool public fundsReturn = false;
     bool public isDiscount = false;
+    bool public allowMintNFT = false;
 
     struct buyerVault{
         uint256 tokenAmount;
@@ -129,6 +133,12 @@ using SafeMath for uint256;
         require(_DAO != address(0), "Address 0");
         polyKickDAO = _DAO;
     }
+    function setPolyNFT(address _polyNFT) external onlyAdmin{
+        nftContract = polyNFT(_polyNFT);
+    }
+    function setAllowMintNFT(bool _true_false) external onlyAdmin{
+        allowMintNFT = _true_false;
+    }
     function minBuyMax(uint256 minAmt, uint256 maxAmt, uint256 _price, uint8 _dcml) internal{
         uint256 min = minAmt * 10 ** _dcml;
         uint256 max = maxAmt * 10 ** _dcml;
@@ -179,6 +189,9 @@ using SafeMath for uint256;
     function buyTokens(uint256 _amountToPay) external nonReentrant{
         require(isWhitelisted[msg.sender] == true, "You need to be whitelisted for this ILO");
         require(block.timestamp < duration,"ILO Ended!");
+        if(allowMintNFT == true){
+            nftContract.mint(msg.sender);
+        }
         uint256 amount = _amountToPay * 10 ** tokenDecimals;
         uint256 finalAmount;
         if(isDiscount == true){
